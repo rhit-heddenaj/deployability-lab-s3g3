@@ -58,7 +58,17 @@ PY="$RELEASE/venv/bin/python"                          # Mac and Linux
 "$PY" -m pip install --quiet --disable-pip-version-check "$RELEASE/pyftpdlib"
 
 # 5. Start the server in the background.
-"$PY" -m pyftpdlib --interface "$HOST" --port "$PORT" --write --directory "$DATA" \
+# Mediator for clients built before the passive-mode reply changed (see compat.py).
+# Only tags whose server knows the flag get it, so older tags (v1...) still deploy.
+LEGACY=""
+if [ "${LEGACY_PASV:-0}" = "1" ]; then
+  if grep -q -- "--legacy-pasv" "$RELEASE/pyftpdlib/pyftpdlib/__main__.py"; then
+    LEGACY="--legacy-pasv"
+  else
+    echo "deploy: $TAG has no --legacy-pasv support, starting without the compatibility mediator"
+  fi
+fi
+"$PY" -m pyftpdlib $LEGACY --interface "$HOST" --port "$PORT" --write --directory "$DATA" \
   --username "$FTP_USER" --password "$FTP_PASS" > "$DEPLOY/server.log" 2>&1 &
 PID=$!
 [ -f "/proc/$PID/winpid" ] && PID=$(cat "/proc/$PID/winpid")  # Git Bash: save the Windows process id

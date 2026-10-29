@@ -100,30 +100,13 @@ class PassiveDTP(Acceptor):
         self.listen(self.backlog or self.cmd_channel.server.backlog)
 
         port = self.socket.getsockname()[1]
-        if not extmode:
-            ip = masqueraded_ip or local_ip
-            if ip.startswith("::ffff:"):
-                # In this scenario, the server has an IPv6 socket, but
-                # the remote client is using IPv4 and its address is
-                # represented as an IPv4-mapped IPv6 address which
-                # looks like this ::ffff:151.12.5.65, see:
-                # https://en.wikipedia.org/wiki/IPv6#IPv4-mapped_addresses
-                # https://datatracker.ietf.org/doc/html/rfc3493.html#section-3.7
-                # We truncate the first bytes to make it look like a
-                # common IPv4 address.
-                ip = ip[7:]
-            # The format of 227 response in not standardized.
-            # This is the most expected:
-            resp = "227 Entering passive mode (%s,%d,%d)." % (
-                ip.replace(".", ","),
-                port // 256,
-                port % 256,
-            )
-            self.cmd_channel.respond(resp)
-        else:
-            self.cmd_channel.respond(
-                f"229 Entering extended passive mode (|||{int(port)}|)."
-            )
+        # v5 (breaking release): the server now speaks ONE passive-mode dialect,
+        # RFC 2428's "229 ... (|||port|)", for PASV and EPSV alike. The old
+        # "227 ... (h1,h2,h3,h4,p1,p2)" reply is gone. Clients built before this
+        # (the M0 JFTP waits for a 227) can no longer find the data port.
+        self.cmd_channel.respond(
+            f"229 Entering extended passive mode (|||{int(port)}|)."
+        )
         if self.timeout:
             self.call_later(self.timeout, self.handle_timeout)
 

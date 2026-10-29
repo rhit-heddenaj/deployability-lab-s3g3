@@ -338,6 +338,15 @@ def parse_args(args=None):
             f" {FTPHandler.max_login_attempts})"
         ),
     )
+    group_misc.add_argument(
+        "--legacy-pasv",
+        action="store_true",
+        default=False,
+        help=(
+            "keep pre-v5 clients working: answer PASV with the legacy 227 "
+            "reply (EPSV clients still get 229)"
+        ),
+    )
 
     return parser.parse_args(args)
 
@@ -376,6 +385,10 @@ def main(args=None):
             raise argparse.ArgumentTypeError(
                 "--tls requires --keyfile and --certfile args"
             )
+        if opts.legacy_pasv:
+            raise argparse.ArgumentTypeError(
+                "--legacy-pasv is not supported together with --tls"
+            )
         handler = TLS_FTPHandler
         handler.certfile = opts.certfile
         handler.keyfile = opts.keyfile
@@ -388,7 +401,12 @@ def main(args=None):
             raise argparse.ArgumentTypeError(
                 "--keyfile and --certfile args requires --tls arg"
             )
-        handler = FTPHandler
+        if opts.legacy_pasv:
+            from .compat import LegacyPasvHandler
+
+            handler = LegacyPasvHandler
+        else:
+            handler = FTPHandler
 
     # Configure handler.
     handler.authorizer = authorizer
