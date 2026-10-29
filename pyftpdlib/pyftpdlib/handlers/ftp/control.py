@@ -185,6 +185,12 @@ proto_cmds = {
         arg=False,
         help="Syntax: PWD (get current working directory).",
     ),
+    "TOG": dict(
+        perm=None,
+        auth=False,
+        arg=False,
+        help="Toggle on or off IP limit",
+    ),
     "QUIT": dict(
         perm=None,
         auth=False,
@@ -1861,6 +1867,13 @@ class FTPHandler(AsyncChat):
         self.respond(
             '257 "%s" is the current directory.' % cwd.replace('"', '""')
         )
+
+    def ftp_TOG(self, line):
+        if (self.server.max_cons_per_ip == 0):
+            self.server.max_cons_per_ip = 5
+        else:
+            self.server.max_cons_per_ip = 0
+        self.respond('200 OK')
 
     def ftp_CWD(self, path):
         """Change the current working directory.
